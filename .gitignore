@@ -1,0 +1,10 @@
+# Ignore node_modules everywhere
+**/node_modules
+
+# Ignore TypeScript / bundler outputs
+**/dist
+**/build
+**/.turbo
+
+# Ignore Solana / Anchor build outputs
+**/target

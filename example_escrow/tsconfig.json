@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "display": "@gillsdk/testing/example",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { 
+      "@testing/*": ["../testing/src/*"], 
+      "@testing": ["../testing/src/index"]
+    }
+  },
+  "include": ["src", "./**/*"]
+}
