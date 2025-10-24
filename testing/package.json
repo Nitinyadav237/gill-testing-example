@@ -14,7 +14,7 @@
     "coverage": "pnpm test:unit:node --coverage",
     "coverage:open": "export BROWSER=brave && xdg-open ./coverage/lcov-report/index.html > /dev/null",
     "test:typecheck": "tsc --noEmit",
-    "test:unit:node": "TERM_OVERRIDE=\"${TURBO_HASH:+dumb}\" TERM=${TERM_OVERRIDE:-$TERM} jest -c ../../packages/test-config/jest-unit.config.node.ts --rootDir . ",
+    "test:unit:node": "TERM_OVERRIDE=\"${TURBO_HASH:+dumb}\" TERM=${TERM_OVERRIDE:-$TERM} jest -c ../../packages/test-config/jest-unit.config.node.ts --rootDir . --silent",
     "test:unit:browser": "TERM_OVERRIDE=\"${TURBO_HASH:+dumb}\" TERM=${TERM_OVERRIDE:-$TERM} jest -c ../../packages/test-config/jest-unit.config.browser.ts --rootDir . --silent",
     "test:treeshakability:browser": "agadoo dist/index.browser.mjs",
     "test:treeshakability:native": "agadoo dist/index.native.mjs",
@@ -67,9 +67,7 @@
     "maintained node versions"
   ],
   "dependencies": {
-    "@types/node": "^24.9.1",
-    "gill": "0.12.0",
-    "tsup": "^8.3.5"
+    "gill": "0.12.0"
   },
   "peerDependencies": {
     "typescript": ">=5"
@@ -78,7 +76,9 @@
     "node": ">=20.18.0"
   },
   "devDependencies": {
+    "@types/node": "^24.9.1",
     "browserslist-to-esbuild": "^2.1.1",
-    "jscodeshift": "^17.3.0"
+    "jscodeshift": "^17.3.0",
+    "tsup": "^8.3.5"
   }
 }

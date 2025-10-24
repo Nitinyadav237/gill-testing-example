@@ -1,5 +1,5 @@
-import type { Signature } from "gill";
 import type { SolanaClient } from "gill";
+import { MOCK_TRANSACTION_SIGNATURE } from "../helpers/common_setup.js";
 import { expectTxToSucceed } from "../matchers/expectTxToSucceed";
 import { inspectTransaction } from "../txLogInspector/inspectTransaction";
 
@@ -7,7 +7,7 @@ jest.mock("../txLogInspector/inspectTransaction");
 
 describe("expectTxToSucceed - Additional Tests", () => {
   let mockRpc: SolanaClient["rpc"];
-  const mockSignature = "mock-signature-xyz789" as Signature;
+  const mockSignature = MOCK_TRANSACTION_SIGNATURE;
 
   beforeEach(() => {
     jest.clearAllMocks();

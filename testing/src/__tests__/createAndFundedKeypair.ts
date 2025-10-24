@@ -20,14 +20,12 @@ describe("createAndFundedKeypair", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mock airdrop execution
-    mockAirdrop = jest.fn().mockResolvedValue("mock-signature-abc123");
+      mockAirdrop = jest.fn().mockResolvedValue("mock-signature-abc123");
     (airdropFactory as jest.Mock).mockReturnValue(mockAirdrop);
 
-    // Mock keypair generation
+
     (generateKeyPairSigner as jest.Mock).mockResolvedValue({ address: "mock-address" });
 
-    // Mock RPC getBalance
     mockRpc = {
       getBalance: jest.fn().mockReturnValue({
         send: jest.fn().mockResolvedValue({ value: lamports(DEFAULT_LAMPORTS) }),

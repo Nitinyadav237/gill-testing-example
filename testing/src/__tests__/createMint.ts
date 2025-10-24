@@ -1,20 +1,26 @@
 import {
+  createTransaction,
   generateKeyPairSigner,
   getMinimumBalanceForRentExemption,
-  createTransaction,
   signTransactionMessageWithSigners,
-  type KeyPairSigner,
   type SolanaClient,
-  Signature,
 } from "gill";
 import { loadKeypairSignerFromFile } from "gill/node";
-import {
-  getCreateAccountInstruction,
-  getInitializeMintInstruction,
-  getMintSize,
-  TOKEN_PROGRAM_ADDRESS,
-} from "gill/programs";
+import { getCreateAccountInstruction, getInitializeMintInstruction, getMintSize } from "gill/programs";
 import { createMint } from "../fixtures/createMint";
+
+import {
+  MOCK_CUSTOM_PAYER,
+  MOCK_MINT_SIGNER,
+  MOCK_MINT_SPACE,
+  MOCK_PAYER,
+  MOCK_RENT_EXEMPT_LAMPORTS,
+  MOCK_TOKEN_PROGRAM_ADDRESS,
+  MOCK_TRANSACTION_SIGNATURE,
+  getMockRpc,
+  setupCommonFixtureMocks,
+  type CommonMocks,
+} from "../helpers/common_setup";
 
 jest.mock("gill", () => ({
   ...jest.requireActual("gill"),
@@ -24,71 +30,88 @@ jest.mock("gill", () => ({
   signTransactionMessageWithSigners: jest.fn(),
 }));
 
-jest.mock("gill/node", () => ({ loadKeypairSignerFromFile: jest.fn() }));
-
-jest.mock("gill/programs", () => ({
-  ...jest.requireActual("gill/programs"),
-  getCreateAccountInstruction: jest.fn(),
-  getInitializeMintInstruction: jest.fn(),
-  getMintSize: jest.fn(),
-  TOKEN_PROGRAM_ADDRESS: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+jest.mock("gill/node", () => ({
+  loadKeypairSignerFromFile: jest.fn(),
 }));
 
+jest.mock("gill/programs", () => {
+  const programs = jest.requireActual("gill/programs");
+  return {
+    ...programs,
+    getCreateAccountInstruction: jest.fn(),
+    getInitializeMintInstruction: jest.fn(),
+    getMintSize: jest.fn(),
+    TOKEN_PROGRAM_ADDRESS: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  };
+});
+
 describe("createMint", () => {
-  let mockSigner: KeyPairSigner;
-  let mockMint: KeyPairSigner;
   let mockRpc: SolanaClient["rpc"];
   let mockSendAndConfirmTransaction: jest.Mock;
-  const mockTransactionSignature = "mockTxSig" as Signature;
-  const mockSignedTransaction = { signatures: [] };
-  const mockSpace = 82;
-  const mockLamports = 1461600n;
+  const mockTransactionSignature = MOCK_TRANSACTION_SIGNATURE;
+  const mockSpace = MOCK_MINT_SPACE;
+  const mockLamports = MOCK_RENT_EXEMPT_LAMPORTS;
+  const commonMocks: CommonMocks = {
+    loadKeypairSignerFromFile: loadKeypairSignerFromFile as jest.Mock,
+    generateKeyPairSigner: generateKeyPairSigner as jest.Mock,
+    createTransaction: createTransaction as jest.Mock,
+    signTransactionMessageWithSigners: signTransactionMessageWithSigners as jest.Mock,
+  };
 
   beforeEach(() => {
-    mockSigner = { address: "signerAddress" as any } as KeyPairSigner;
-    mockMint = { address: "mintAddress" as any } as KeyPairSigner;
-
-    mockRpc = {
-      getLatestBlockhash: jest.fn().mockReturnValue({
-        send: jest.fn().mockResolvedValue({ value: { blockhash: "blockhash", lastValidBlockHeight: 1n } }),
-      }),
-    } as unknown as SolanaClient["rpc"];
-
     mockSendAndConfirmTransaction = jest.fn().mockResolvedValue(mockTransactionSignature);
+    mockRpc = getMockRpc(mockSendAndConfirmTransaction);
 
-    (loadKeypairSignerFromFile as jest.Mock).mockResolvedValue(mockSigner);
-    (generateKeyPairSigner as jest.Mock).mockResolvedValue(mockMint);
+    setupCommonFixtureMocks(commonMocks, MOCK_PAYER, MOCK_MINT_SIGNER);
+
     (getMintSize as jest.Mock).mockReturnValue(mockSpace);
     (getMinimumBalanceForRentExemption as jest.Mock).mockReturnValue(mockLamports);
     (getCreateAccountInstruction as jest.Mock).mockReturnValue({ instruction: "mockCreateAccountInstruction" });
     (getInitializeMintInstruction as jest.Mock).mockReturnValue({ instruction: "mockInitializeMintInstruction" });
-    (createTransaction as jest.Mock).mockReturnValue({ transaction: "mockTransaction" });
-    (signTransactionMessageWithSigners as jest.Mock).mockResolvedValue(mockSignedTransaction);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  afterEach(() => jest.clearAllMocks());
 
   it("creates a mint with default parameters", async () => {
     const result = await createMint(mockRpc, mockSendAndConfirmTransaction);
 
-    expect(result).toEqual({ mint: mockMint, transactionSignature: mockTransactionSignature });
+    expect(result).toEqual({
+      mint: MOCK_MINT_SIGNER,
+      transactionSignature: mockTransactionSignature,
+    });
+
     expect(getInitializeMintInstruction).toHaveBeenCalledWith(
-      { mint: mockMint.address, mintAuthority: mockSigner.address, freezeAuthority: mockSigner.address, decimals: 9 },
-      { programAddress: TOKEN_PROGRAM_ADDRESS },
+      {
+        mint: MOCK_MINT_SIGNER.address,
+        mintAuthority: MOCK_PAYER.address,
+        freezeAuthority: MOCK_PAYER.address,
+        decimals: 9,
+      },
+      { programAddress: MOCK_TOKEN_PROGRAM_ADDRESS },
     );
   });
 
   it("creates a mint with custom payer and decimals", async () => {
-    const customPayer: KeyPairSigner = { address: "customPayer" as any } as KeyPairSigner;
-    const result = await createMint(mockRpc, mockSendAndConfirmTransaction, { payer: customPayer, decimals: 4 });
+    const result = await createMint(mockRpc, mockSendAndConfirmTransaction, {
+      payer: MOCK_CUSTOM_PAYER,
+      decimals: 4,
+    });
 
-    expect(result).toEqual({ mint: mockMint, transactionSignature: mockTransactionSignature });
-    expect(getCreateAccountInstruction).toHaveBeenCalledWith(expect.objectContaining({ payer: customPayer }));
+    expect(result).toEqual({
+      mint: MOCK_MINT_SIGNER,
+      transactionSignature: mockTransactionSignature,
+    });
+
+    expect(getCreateAccountInstruction).toHaveBeenCalledWith(expect.objectContaining({ payer: MOCK_CUSTOM_PAYER }));
+
     expect(getInitializeMintInstruction).toHaveBeenCalledWith(
-      { mint: mockMint.address, mintAuthority: customPayer.address, freezeAuthority: customPayer.address, decimals: 4 },
-      { programAddress: TOKEN_PROGRAM_ADDRESS },
+      {
+        mint: MOCK_MINT_SIGNER.address,
+        mintAuthority: MOCK_CUSTOM_PAYER.address,
+        freezeAuthority: MOCK_CUSTOM_PAYER.address,
+        decimals: 4,
+      },
+      { programAddress: MOCK_TOKEN_PROGRAM_ADDRESS },
     );
   });
 
@@ -96,6 +119,7 @@ describe("createMint", () => {
     await expect(createMint(mockRpc, mockSendAndConfirmTransaction, { decimals: -1 })).rejects.toThrow(
       "Invalid decimals value: -1. Must be between 0 and 9.",
     );
+
     await expect(createMint(mockRpc, mockSendAndConfirmTransaction, { decimals: 10 })).rejects.toThrow(
       "Invalid decimals value: 10. Must be between 0 and 9.",
     );
@@ -105,6 +129,7 @@ describe("createMint", () => {
     mockRpc.getLatestBlockhash = jest
       .fn()
       .mockReturnValue({ send: jest.fn().mockRejectedValue(new Error("RPC failed")) });
+
     await expect(createMint(mockRpc, mockSendAndConfirmTransaction)).rejects.toThrow("RPC failed");
   });
 

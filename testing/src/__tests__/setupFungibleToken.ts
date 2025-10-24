@@ -1,7 +1,18 @@
-import { KeyPairSigner, lamports, type Address, type SolanaClient, type Signature } from "gill";
+import { KeyPairSigner, lamports, type SolanaClient } from "gill";
 import { createMint } from "../fixtures/createMint";
 import { mintTo } from "../fixtures/mintTo";
 import { setupFungibleToken } from "../fixtures/setupFungibleToken";
+
+import {
+  MOCK_ATA_ADDRESS,
+  MOCK_MINT_ADDRESS,
+  MOCK_MINT_TO_AMOUNT,
+  MOCK_OWNER_ADDRESS,
+  MOCK_PAYER,
+  MOCK_TRANSACTION_SIGNATURE,
+  getMockRpc,
+  mockSigner,
+} from "../helpers/common_setup";
 
 jest.mock("../fixtures/createMint");
 jest.mock("../fixtures/mintTo");
@@ -10,21 +21,20 @@ describe("setupFungibleToken", () => {
   let mockPayer: KeyPairSigner;
   let mockRpc: SolanaClient["rpc"];
   let mockSendAndConfirmTransaction: jest.Mock;
-  const mockOwner = "mockOwnerAddress" as Address;
-  const mockMint = "mockMintAddress" as Address;
-  const mockAta = "mockAtaAddress" as Address;
-  const mockTransactionSignature = "mockTxSig" as Signature;
-  const mockMintedAmount = lamports(1_000_000n);
-  const mockMintSigner = { address: mockMint } as KeyPairSigner;
+
+  const mockOwner = MOCK_OWNER_ADDRESS;
+  const mockMint = MOCK_MINT_ADDRESS;
+  const mockAta = MOCK_ATA_ADDRESS;
+  const mockTransactionSignature = MOCK_TRANSACTION_SIGNATURE;
+  const mockMintedAmount = MOCK_MINT_TO_AMOUNT;
+  const mockMintSigner = mockSigner(mockMint);
 
   beforeAll(() => {
-    mockPayer = { address: "payerAddress" as Address, keyPair: {} as CryptoKeyPair } as KeyPairSigner;
-
-    mockRpc = {
-      getLatestBlockhash: jest.fn().mockReturnValue({ send: jest.fn().mockResolvedValue({ value: {} }) }),
-    } as unknown as SolanaClient["rpc"];
+    mockPayer = MOCK_PAYER;
 
     mockSendAndConfirmTransaction = jest.fn().mockResolvedValue(mockTransactionSignature);
+
+    mockRpc = getMockRpc(mockSendAndConfirmTransaction);
   });
 
   beforeEach(() => {

@@ -1,9 +1,23 @@
-import type { Signature, KeyPairSigner } from "gill";
-import { createTransaction, signTransactionMessageWithSigners, type Address, lamports, type SolanaClient } from "gill";
+import { createTransaction, lamports, signTransactionMessageWithSigners, type Address, type SolanaClient } from "gill";
 import { loadKeypairSignerFromFile } from "gill/node";
-import { getAssociatedTokenAccountAddress, getMintToInstruction, TOKEN_PROGRAM_ADDRESS } from "gill/programs";
+import { getAssociatedTokenAccountAddress, getMintToInstruction } from "gill/programs";
 import { ensureAta } from "../fixtures/ensureAta";
 import { mintTo } from "../fixtures/mintTo";
+
+import {
+  MOCK_ATA_ADDRESS,
+  MOCK_CUSTOM_PAYER,
+  MOCK_LATEST_BLOCKHASH,
+  MOCK_MINT_ADDRESS,
+  MOCK_MINT_TO_AMOUNT,
+  MOCK_OWNER_ADDRESS,
+  MOCK_PAYER,
+  MOCK_TOKEN_PROGRAM_ADDRESS,
+  MOCK_TRANSACTION_SIGNATURE,
+  getMockRpc,
+  setupCommonFixtureMocks,
+  type CommonMocks,
+} from "../helpers/common_setup";
 
 jest.mock("gill", () => ({
   ...jest.requireActual("gill"),
@@ -27,58 +41,43 @@ jest.mock("../fixtures/ensureAta", () => ({
 }));
 
 describe("mintTo", () => {
-  let mockSigner: KeyPairSigner;
   let mockRpc: SolanaClient["rpc"];
   let mockSendAndConfirmTransaction: jest.Mock;
 
-  const mockMint = "mockMintAddress" as Address;
-  const mockToOwner = "mockOwnerAddress" as Address;
-  const mockAta = "mockAtaAddress" as Address;
-  const mockAmount = lamports(1000n);
-  const mockTransactionSignature = "mockTransactionSignature" as Signature;
-  const mockLatestBlockhash = { blockhash: "mockBlockhash", lastValidBlockHeight: 123456789n };
-  const mockSignedTransaction = { signatures: [] };
-
-  beforeAll(() => {
-    mockSigner = { address: "signerAddress" as Address, keyPair: {} as CryptoKeyPair } as KeyPairSigner;
-  });
+  const commonMocks: CommonMocks = {
+    loadKeypairSignerFromFile: loadKeypairSignerFromFile as jest.Mock,
+    getAssociatedTokenAccountAddress: getAssociatedTokenAccountAddress as jest.Mock,
+    createTransaction: createTransaction as jest.Mock,
+    signTransactionMessageWithSigners: signTransactionMessageWithSigners as jest.Mock,
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockRpc = {
-      getLatestBlockhash: jest
-        .fn()
-        .mockReturnValue({ send: jest.fn().mockResolvedValue({ value: mockLatestBlockhash }) }),
-    } as unknown as SolanaClient["rpc"];
+    mockSendAndConfirmTransaction = jest.fn().mockResolvedValue(MOCK_TRANSACTION_SIGNATURE);
+    mockRpc = getMockRpc(mockSendAndConfirmTransaction);
 
-    mockSendAndConfirmTransaction = jest.fn().mockResolvedValue(mockTransactionSignature);
+    (mockRpc.getLatestBlockhash as jest.Mock).mockReturnValue({
+      send: jest.fn().mockResolvedValue({ value: MOCK_LATEST_BLOCKHASH }),
+    });
 
-    (loadKeypairSignerFromFile as jest.Mock).mockResolvedValue(mockSigner);
-    (ensureAta as jest.Mock).mockResolvedValue({ ata: mockAta });
-    (getAssociatedTokenAccountAddress as jest.Mock).mockResolvedValue(mockAta);
+    setupCommonFixtureMocks(commonMocks, MOCK_PAYER);
+
+    (ensureAta as jest.Mock).mockResolvedValue({
+      ata: MOCK_ATA_ADDRESS,
+      transactionSignature: "ensureAtaSig",
+    });
     (getMintToInstruction as jest.Mock).mockReturnValue({ instruction: "mockMintToInstruction" });
-    (createTransaction as jest.Mock).mockReturnValue({ transaction: "mockTransaction" });
-    (signTransactionMessageWithSigners as jest.Mock).mockResolvedValue(mockSignedTransaction);
   });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  const customPayer: KeyPairSigner = {
-    address: "customPayerAddress" as Address,
-    keyPair: {} as CryptoKeyPair,
-  } as KeyPairSigner;
 
   test.each([
     { payer: undefined, loadDefault: true },
-    { payer: customPayer, loadDefault: false },
-  ])("should mint tokens with payer=%p", async ({ payer, loadDefault }) => {
+    { payer: MOCK_CUSTOM_PAYER, loadDefault: false },
+  ])("should mint with payer=%p", async ({ payer, loadDefault }) => {
     const result = await mintTo(mockRpc, mockSendAndConfirmTransaction, {
-      mint: mockMint,
-      owner: mockToOwner,
-      amount: mockAmount,
+      mint: MOCK_MINT_ADDRESS,
+      owner: MOCK_OWNER_ADDRESS,
+      amount: MOCK_MINT_TO_AMOUNT,
       payer,
     });
 
@@ -86,52 +85,75 @@ describe("mintTo", () => {
     else expect(loadKeypairSignerFromFile).not.toHaveBeenCalled();
 
     expect(ensureAta).toHaveBeenCalledWith(mockRpc, mockSendAndConfirmTransaction, {
-      owner: mockToOwner,
-      mint: mockMint,
+      owner: MOCK_OWNER_ADDRESS,
+      mint: MOCK_MINT_ADDRESS,
     });
-    expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ feePayer: payer ?? mockSigner }));
-    expect(result).toEqual({ ata: mockAta, transactionSignature: mockTransactionSignature, mintedAmount: mockAmount });
+
+    expect(createTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        feePayer: payer ?? MOCK_PAYER,
+        latestBlockhash: MOCK_LATEST_BLOCKHASH,
+      }),
+    );
+
+    expect(result).toEqual({
+      ata: MOCK_ATA_ADDRESS,
+      transactionSignature: MOCK_TRANSACTION_SIGNATURE,
+      mintedAmount: MOCK_MINT_TO_AMOUNT,
+    });
   });
 
-  it("should mint tokens without ensuring ATA when ensureAta is false", async () => {
+  test("should mint without ensuring ATA", async () => {
     const result = await mintTo(mockRpc, mockSendAndConfirmTransaction, {
-      mint: mockMint,
-      owner: mockToOwner,
-      amount: mockAmount,
+      mint: MOCK_MINT_ADDRESS,
+      owner: MOCK_OWNER_ADDRESS,
+      amount: MOCK_MINT_TO_AMOUNT,
       ensureAta: false,
     });
 
     expect(ensureAta).not.toHaveBeenCalled();
-    expect(getAssociatedTokenAccountAddress).toHaveBeenCalledWith(mockMint, mockToOwner, TOKEN_PROGRAM_ADDRESS);
-    expect(result.ata).toBe(mockAta);
-    expect(result.transactionSignature).toBe(mockTransactionSignature);
-    expect(result.mintedAmount).toBe(mockAmount);
+    expect(getAssociatedTokenAccountAddress).toHaveBeenCalledWith(
+      MOCK_MINT_ADDRESS,
+      MOCK_OWNER_ADDRESS,
+      MOCK_TOKEN_PROGRAM_ADDRESS,
+    );
+
+    expect(result).toEqual({
+      ata: MOCK_ATA_ADDRESS,
+      transactionSignature: MOCK_TRANSACTION_SIGNATURE,
+      mintedAmount: MOCK_MINT_TO_AMOUNT,
+    });
   });
 
   test.each([
-    { params: { amount: lamports(0n) }, mockFn: undefined, error: "Amount must be greater than 0" },
+    {
+      params: { amount: lamports(0n) },
+      mockFn: undefined,
+      error: "Amount must be greater than 0",
+    },
     {
       params: {},
-      mockFn: () => (loadKeypairSignerFromFile as jest.Mock).mockRejectedValue(new Error("Failed to load keypair")),
+      mockFn: () => commonMocks.loadKeypairSignerFromFile!.mockRejectedValueOnce(new Error("Failed to load keypair")),
       error: "Failed to load keypair",
     },
     {
       params: {},
-      mockFn: () => (ensureAta as jest.Mock).mockRejectedValue(new Error("Failed to ensure ATA")),
+      mockFn: () => (ensureAta as jest.Mock).mockRejectedValueOnce(new Error("Failed to ensure ATA")),
       error: "Failed to ensure ATA",
     },
     {
       params: {},
-      mockFn: () => mockSendAndConfirmTransaction.mockRejectedValue(new Error("Transaction failed")),
+      mockFn: () => mockSendAndConfirmTransaction.mockRejectedValueOnce(new Error("Transaction failed")),
       error: "Transaction failed",
     },
-  ])("should throw error: %p", async ({ params, mockFn, error }) => {
+  ])("throws error: $error", async ({ params, mockFn, error }) => {
     mockFn?.();
+
     await expect(
       mintTo(mockRpc, mockSendAndConfirmTransaction, {
-        mint: mockMint,
-        owner: mockToOwner,
-        amount: mockAmount,
+        mint: MOCK_MINT_ADDRESS,
+        owner: MOCK_OWNER_ADDRESS,
+        amount: params.amount ?? MOCK_MINT_TO_AMOUNT,
         ...params,
       }),
     ).rejects.toThrow(error);

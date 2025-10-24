@@ -58,7 +58,7 @@ async function waitForSurfpoolReady(
   programAddress: Address,
   timeoutMs: number = 120_000,
 ): Promise<void> {
-  const checkInterval = 5_000; // Check every 5 seconds
+  const checkInterval = 5_000;
   const start = Date.now();
 
   const { rpc } = createSolanaClient({ urlOrMoniker: rpcUrl });

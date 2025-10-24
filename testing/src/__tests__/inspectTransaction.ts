@@ -1,9 +1,10 @@
-import type { Address, Signature, SolanaClient } from "gill";
+import type { Address, SolanaClient } from "gill";
 import { inspectTransaction } from "../txLogInspector/inspectTransaction";
+import { MOCK_TRANSACTION_SIGNATURE } from "../helpers/common_setup";
 
 describe("inspectTransaction (maintainable version)", () => {
   let mockRpc: SolanaClient["rpc"];
-  const mockSignature = "mockTransactionSignature" as Signature;
+  const mockSignature = MOCK_TRANSACTION_SIGNATURE;
 
   const mockAccount1 = "account1Address" as Address;
   const mockAccount2 = "account2Address" as Address;
@@ -104,7 +105,9 @@ describe("inspectTransaction (maintainable version)", () => {
       send: jest.fn().mockResolvedValue(mockTransactionData),
     });
 
-    await expect(inspectTransaction(mockRpc, mockSignature)).rejects.toThrow("Transaction metadata not available");
+    await expect(inspectTransaction(mockRpc, mockSignature)).rejects.toThrow(
+      "Transaction metadata not available"
+    );
   });
 
   it("should handle missing optional fields gracefully", async () => {
@@ -147,7 +150,9 @@ describe("inspectTransaction (maintainable version)", () => {
 
     const result = await inspectTransaction(mockRpc, mockSignature);
     expect(result?.accountsTouched).toHaveLength(2);
-    expect(result?.accountsTouched).toEqual(expect.arrayContaining([mockAccount1, mockAccount2]));
+    expect(result?.accountsTouched).toEqual(
+      expect.arrayContaining([mockAccount1, mockAccount2])
+    );
   });
 
   it("should propagate RPC errors", async () => {
@@ -156,6 +161,8 @@ describe("inspectTransaction (maintainable version)", () => {
       send: jest.fn().mockRejectedValue(mockError),
     });
 
-    await expect(inspectTransaction(mockRpc, mockSignature)).rejects.toThrow("RPC failed");
+    await expect(inspectTransaction(mockRpc, mockSignature)).rejects.toThrow(
+      "RPC failed"
+    );
   });
 });
