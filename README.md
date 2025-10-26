@@ -39,13 +39,13 @@ cd example_escrow
 pnpm tsx tests/escrow_program1.ts
 ```
 
-### ✅ Method 2 — Using Anchor (if modifying Anchor program)
+### ✅ Method 2 — Using Anchor
 
 ```bash
 anchor test --skip-deploy --skip-local-validator
 ```
 
-Only needed when you modify the Anchor smart contract itself — this skips the local validator startup and deployment.
+This skips the local validator startup and deployment.
 
 ## Summary
 
